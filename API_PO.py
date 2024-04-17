@@ -1,4 +1,4 @@
-# 2 alfa made by Lock
+# 3 alfa made by Lock
 
 import aiohttp
 import asyncio
@@ -277,6 +277,24 @@ class product_stocks_request(BaseModel):
         return self.dict()
 
 
+class rating_history_request(BaseModel):
+    date_from: str
+    date_to: str
+    ratings: list[str] = ['rating_on_time', 
+                          'rating_review_avg_score_total', 
+                          'rating_price', 
+                          'rating_order_cancellation', 
+                          'rating_shipment_delay', 
+                          'rating_ssl', 
+                          'rating_on_time_supply_delivery', 
+                          'rating_order_accuracy', 
+                          'rating_on_time_supply_cancellation', 
+                          'rating_reaction_time',
+                          'rating_average_response_time',
+                          'rating_replied_dialogs_ratio',
+                          'rating_on_time']
+    with_premium_scores: bool
+
 
 class product_list_filter(BaseModel):
     offer_id: list[str] = []
@@ -339,7 +357,6 @@ class report_info_request(BaseModel):
         return self.dict()
 
 
-
 class report_list_report_type(str, Enum):
     DEFAULT = 'DEFAULT'
     ALL = 'ALL',
@@ -363,6 +380,118 @@ class report_list_request(BaseModel):
     def to_dict(self):
         return self.dict()
 
+class report_product_create_language(str, Enum):
+    RU = 'RU' 
+    EN = 'EN'
+
+class report_product_create_visibility(str, Enum):
+    ALL = 'ALL'
+    VISIBLE = 'VISIBLE'
+    INVISIBLE = 'INVISIBLE'
+    EMPTY_STOCK = 'EMPTY_STOCK'
+    NOT_MODERATED = 'NOT_MODERATED'
+    MODERATED = 'MODERATED'
+    DISABLED = 'DISABLED'
+    STATE_FAILED = 'STATE_FAILED'
+    READY_TO_SUPPLY = 'READY_TO_SUPPLY'
+    VALIDATION_STATE_PENDING = 'VALIDATION_STATE_PENDING'
+    VALIDATION_STATE_FAIL = 'VALIDATION_STATE_FAIL'
+    VALIDATION_STATE_SUCCESS = 'VALIDATION_STATE_SUCCESS'
+    TO_SUPPLY = 'TO_SUPPLY'
+    IN_SALE = 'IN_SALE'
+    REMOVED_FROM_SALE = 'REMOVED_FROM_SALE'
+    BANNED = 'BANNED'
+    OVERPRICED = 'OVERPRICED'
+    CRITICALLY_OVERPRICED = 'CRITICALLY_OVERPRICED'
+    EMPTY_BARCODE = 'EMPTY_BARCODE'
+    BARCODE_EXISTS = 'BARCODE_EXISTS'
+    QUARANTINE = 'QUARANTINE'
+
+
+class report_product_create_request(BaseModel):
+    language: report_product_create_language
+    offer_id: list[str]
+    search: str
+    sku: list[int]
+    visibility: report_product_create_visibility
+
+
+class report_returns_create_language(str, Enum):
+    RU = 'RU' 
+    EN = 'EN'
+
+class report_returns_create_request(BaseModel):
+    delivery_schema:str
+    order_id: int
+    status: str
+    language: report_returns_create_language
+
+
+class report_postings_create_delivery_schema(str, Enum):
+    fbo = 'fbo'
+    fbs = 'fbs'
+
+
+class report_postings_creater_language(str, Enum):
+    DEFAULT = 'DEFAULT'
+    RU = 'RU' 
+    EN = 'EN'
+
+class report_postings_creater_filter(BaseModel):
+    cancel_reason_id: list[int]
+    delivery_schema: list[report_postings_create_delivery_schema]
+    offer_id: str
+    processed_at_from: str
+    processed_at_to: str
+    sku: list[int]
+    status_alias: list[str]
+    statuses: list[int]
+    title: str
+
+
+class report_postings_create_request(BaseModel):
+    
+    filter : report_postings_creater_filter
+    language : report_postings_creater_language
+
+
+class finance_statement_list_date(BaseModel):
+    from_: str
+    to: str
+
+
+class finance_statement_list_request(BaseModel):
+    date: finance_statement_list_date
+    page: int
+    with_details: bool
+    page_size: int
+
+
+class invoice_create_or_update_price_currency(str, Enum):
+    USD = 'USD'
+    EUR = 'EUR'
+    TRY = 'TRY'
+    CNY = 'CNY'
+    RUB = 'RUB'
+    GBP = 'GBP'
+
+
+class invoice_create_or_update_request(BaseModel):
+    HS_code: str
+    date: str
+    number : str
+    posting_number: str
+    price: float
+    price_currency: invoice_create_or_update_price_currency 
+    url: str
+    
+
+class invoice_get_request(BaseModel):
+    posting_number: str
+
+
+class invoice_delete_request(BaseModel):
+    posting_number: str
 
 
 async def report_list(page, page_size, report_type, api_client):
@@ -371,7 +500,6 @@ async def report_list(page, page_size, report_type, api_client):
     request_data = report_list_request(page=page, page_size=page_size, report_type=report_type)
     response = await api_client.request('POST','https://api-seller.ozon.ru/v1/report/list', request_data.to_dict())
     print(response)
-
 
 
 async def report_info(code, api_client):
@@ -595,27 +723,73 @@ async def seller_rating_summary(group_name, direction, meaning, current_value, n
     print(response)
 
 
+async def rating_history(date_from, date_to, ratings, with_premium_scores, api_client):
+    """Получить информацию о рейтингах продавца за период"""
+    request_data = rating_history_request(date_from=date_from, date_to=date_to, ratings=ratings, with_premium_scores=with_premium_scores)
+    response = await api_client.request('POST', 'https://api-seller.ozon.ru/v1/rating/history', request_data.model_dump())
+    print(response)
+
+
+async def report_product_create(language, offer_id, search, sku, visibility, api_client):
+    """Метод для получения отчёта с данными о товарах. Например, Ozon ID, количества товаров, цен, статуса."""
+    request_data = report_product_create_request(language=language, offer_id=offer_id, search=search, sku=sku, visibility=visibility)
+    response = await api_client.request('POST','https://api-seller.ozon.ru/v1/report/products/create', request_data.model_dump())
+    print(response)
 
 
 
-#list_offer_id = [654654645, 654543]
-#list_offer_id = ['Z00057, Z00054']
-# list_offer_id = ['325745859', '325745860']
+async def report_returns_create(delivery_schema, order_id, status, language, api_client):
+    """Метод для получения отчёта о возвратах товара"""
+    request_data = report_returns_create_request(delivery_schema=delivery_schema, order_id=order_id, status=status, language=language)
+    response = await api_client.request('POST','https://api-seller.ozon.ru/v1/report/returns/create', request_data.model_dump())
+    print(response)
 
-# async def main():
-#     api_client = APIClient('https://api-seller.ozon.ru', {'Client-Id': "YOUR ID HERE", 'Api-Key': "YOUR KEY HERE"})
-#     #await product_attributes_update('', 22, 234, 22, '1',api_client)
-#     await seller_rating_summary('fdfdf',
-#                                  direction_class.DIRECTION_UNKNOWN,
-#                                  meaning_class.MEANING_UNKNOWN,
-#                                  100,
-#                                  'ПРодажа машинок',
-#                                  99,
-#                                  'Продажа машинок',
-#                                  rating_direction_class.UNKNOWN_DIRECTION,
-#                                  status_class.UNKNOWN_STATUS,
-#                                  value_type_class.UNKNOWN_VALUE,
-#                                  False,
-#                                  False,
-#                                  api_client)
 
+# ФУНКЦИЯ НЕ ЗАБУДЬ ДОДЕЛАТЬ 
+async def report_postings_create(cancel_reason_id, delivery_schema, offer_id, processed_at_from, processed_at_to, sku, status_alias, statuses, title, language, api_client):
+    """Отчёт об отправлениях с информацией по заказам"""
+    request_data = report_postings_create_request(filter=report_postings_creater_filter(cancel_reason_id=cancel_reason_id,delivery_schema=delivery_schema, offer_id=offer_id, processed_at_from=processed_at_from,processed_at_to=processed_at_to,sku=sku,status_alias=status_alias,statuses=statuses,title=title),language = language)
+    
+    response = await api_client.request('POST','https://api-seller.ozon.ru/v1/report/postings/create', request_data.model_dump())
+    print(response)
+
+
+
+async def finance_statement_list(from_, to, page, with_details, page_size, api_client):
+    """Метод для получения финансового отчёта"""
+    request_data = finance_statement_list_request(date=finance_statement_list_date(from_=from_, to=to), page=page, with_details=with_details, page_size=page_size)
+    
+    response = await api_client.request('POST','https://api-seller.ozon.ru/v1/finance/cash-flow-statement/list', request_data.model_dump())
+    print(response)
+
+# async def invoice_create_or_update(HS_code:str, date:str, number:str, posting_number:str, price:float, price_currency:str, url:str, api_client):
+#     """Создание или изменение ссылки на таможенный счёт-фактуру для возврата НДС продавцам из Турции"""
+#     request_data = invoice_create_or_update_request(HS_code, date, number, posting_number, price, price_currency, url)
+    
+#     response = await api_client.request('POST','https://api-seller.ozon.ru/v1/invoice/create-or-update', request_data.model_dump())
+#     print(response)
+
+
+async def invoice_create_or_update(HS_code, date, number, posting_number, price, price_currency, url, api_client):
+    """Создание или изменение ссылки на таможенный счёт-фактуру для возврата НДС продавцам из Турции""" 
+    request_data = invoice_create_or_update_request(HS_code=HS_code, date=date, number=number, posting_number=posting_number, price=price, price_currency=price_currency, url=url)
+    response = await api_client.request('POST', 'https://api-seller.ozon.ru/v1/invoice/create-or-update', request_data.model_dump())
+    print(response)
+
+async def invoice_get(posting_number, api_client):
+    """Получить ссылку на счёт-фактуру"""
+    request_data = invoice_get_request(posting_number=posting_number)
+    response = await api_client.request('POST', 'https://api-seller.ozon.ru/v1/invoice/get', request_data.model_dump())
+    print(response)
+
+async def invoice_delete(posting_number, api_client):
+    """Удалить ссылку на счёт-фактуру"""
+    request_data = invoice_delete_request(posting_number=posting_number)
+    response = await api_client.request('POST', 'https://api-seller.ozon.ru/v1/invoice/delete', request_data.model_dump())
+    print(response)
+
+async def main():
+    api_client = APIClient('https://api-seller.ozon.ru', {'Client-Id': "YOUR CLIENT-ID", 'Api-Key': "YOUR API-KEY"})
+    #Call the function here
+
+asyncio.run(main())
